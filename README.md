@@ -1,0 +1,2 @@
+# Speech-to-Sign-Language-Animation-Using-AI-Driven-Pose-Learning
+This project aims to develop an AI-based system capable of translating spoken sentences into sign-language animations by learning the relationship between linguistic features and corresponding human pose data. The system seeks to improve accessibility for the hearing-impaired by providing real-time sign-language translations from natural speech.
