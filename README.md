@@ -147,18 +147,6 @@ The model's forward method is built around a single for loop that unrolls for Lm
 - **Student Forcing:** The model uses its **own predicted pose** (detached). This forces the model to learn how to recover from its own small errors, which is vital for good generation quality at inference time. 
 - The teacher\_forcing\_ratio is decayed over epochs (as calculated in Final Training.py), gradually "weaning" the model off the teacher-forced data and preparing it for the inference-time reality. 
 
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.003.png)
-
-Fig. 1: Main model Architecture 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.004.png)
-
-Fig. 2: Decoder Architecture 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.005.png)
-
-Fig. 3: Training vs. Inference (Scheduled Teacher Forcing) **Loss Functions** 
-
 The model's training is guided by a sophisticated composite loss function, defined in Loss\_func.py. This is not a single loss but a collection of multiple objectives, designed to balance pose accuracy with physical and temporal realism. 
 
 The total objective combines several distinct components. Below is a detailed breakdown of each. 
@@ -171,17 +159,7 @@ This is the primary supervisory loss, responsible for driving the model's accura
 - **Mechanism:** It calculates the standard L2 (Euclidean) distance, or Mean Squared Error (MSE), between the prediction and target tensors. 
 - **Masking:** This loss is critically important. It is only applied to *valid* frames. The mask tensor (shape [Batch, Lmax, 1]) is used to nullify the loss from any padded frames, ensuring the model is not penalized for its output after the true sequence has ended. 
 
-**Mathematical Formula** Let: 
 
-- B be the batch size. 
-- T be the max sequence length (Lmax). 
-- D be the pose dimension (92). 
-- Ypred be the predicted pose tensor (shape [B, T, D]). 
-- Ytarget be the ground-truth pose tensor (shape [B, T, D]). 
-- M be the binary mask tensor (shape [B, T, 1]), where Mb,t = 1 for valid frames and 0 for padded frames. 
-- Nvalid= sum (M) be the total number of valid feature elements in the batch. 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.006.png)
 
 2. **Bone Consistency Loss (Lbone)** 
 
@@ -204,18 +182,10 @@ This la tensor is the input to the two-part loss function described below. **2b.
 - **Purpose:** To keep the length of each of the 31 defined bones within a pre-defined, physically realistic minimum (bone\_min) and maximum (bone\_max) range. 
 - **Mechanism:** It calculates the length of all 31 bones for every valid frame. It then quadratically penalizes any length that falls outside the allowed bounds. 
 
-**Formula:** Let lb,t,k be the calculated length of the k-th bone (out of 31) in batch b at time t. Let mink and maxk be the allowed min/max lengths for bone k. 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.007.png)
-
 **2b. Part B: Bone Temporal Loss (Ltemp)** 
 
 - **Purpose:** To ensure that bone lengths change *smoothly* over time. This prevents a "jittery" or "vibrating" appearance where bones rapidly change length between adjacent frames. 
 - **Mechanism:** It calculates the squared difference of each bone's length between the current frame ($t$) and the previous frame (t-1). 
-
-**Formula:** 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.008.png)
 
 3. **Frame Length Loss (Llen)** 
 
@@ -224,12 +194,6 @@ This is a regularization loss that addresses how the model behaves in the *padde
 - **Purpose:** In Final Training.py, target sequences are padded by *replicating the last valid frame*. This loss encourages the model to "stop moving" (i.e., have zero velocity and acceleration) in this padded region, matching the static nature of the padded target. 
 - **Mechanism:** This loss is the *inverse* of Lpose. It *only* applies to invalid, padded frames (where M=0). It calculates the magnitude of the predicted velocity and acceleration in these regions and penalizes any non-zero values. 
 
-**Formula:** Let M' = (1 - M) be the *invalid* mask. Let Vpredt = Ypredt - Ypredt-1 be the predicted velocity. Let Apredt = Ypredt - 2Ypredt-1 + Ypredt-2 be the predicted acceleration. 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.009.png) ![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.010.png)
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.011.png)
-
 4. **Velocity Loss (Lvel)** 
 
 This is a supervisory loss that operates on the *motion* of the valid frames, not just their position. 
@@ -237,20 +201,12 @@ This is a supervisory loss that operates on the *motion* of the valid frames, no
 - **Purpose:** To directly minimize the error between the *predicted velocity* (frame-to-frame change) and the *target velocity* of the ground-truth data. This encourages the model to match the *timing and speed* of the motion, not just the keyframes. 
 - **Mechanism:** It calculates the velocity for both prediction and target (e.g., Vpredt = Ypredt - Ypredt-1). It then computes a weighted L2 loss on the difference. The weights (w\_vel) are pre-computed constants that apply different importance to the velocities of different joints. 
 
-**Formula:** Let Vpred and Vtarget be the predicted and target velocities. Let Wv be the pre-defined weight tensor (wvel) for velocity. Let Mv be the mask for valid velocity frames (i.e., M from t=2 onwards). 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.012.png)
-
 5. **Acceleration Loss (Lacc)** 
 
 This loss is a higher-order version of the velocity loss, focusing on the *change in velocity*. 
 
 - **Purpose:** To minimize the error between the *predicted acceleration* and the *target acceleration*. This helps the model learn smooth and realistic easing (speeding up and slowing down) of its movements, matching the ground truth. 
 - **Mechanism:** It calculates the acceleration for both prediction and target (e.g., Apredt = Ypredt - 2Ypredt-1 + Ypredt-2). It then computes a weighted L2 loss on the difference, using a separate set of pre-computed weights (wacc). 
-
-**Formula:** Let Apred and Atarget be the predicted and target accelerations. Let Wa be the pre-defined weight tensor (wacc) for acceleration. Let Ma be the mask for valid acceleration frames (i.e., M from t=3 onwards). 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.013.png)
 
 6. **Derivation of Loss-Function Constants** 
 
@@ -276,8 +232,6 @@ The w\_vel and w\_acc tensors provide per-joint (technically, per-coordinate) we
 1. **Compute Motion Energy:** A "motion energy" metric is defined as: Emotion = mean\_motion + std\_motion. This value is high for joints that move a lot and have high variance (e.g., fingertips) and low for joints that are relatively stable (e.g., shoulders). 
 1. **Compute Inverse Weight:** The weight is calculated as the inverse of this energy: W = 1 /( Emotion + epsilon) (where epsilon is a small value to prevent division by zero). 
 1. **Normalize:** The final weights are normalized by dividing by their mean, so the average weight is 1.0. 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.014.png)![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.015.png)
 
 **Implication:** This weighting scheme forces the model to be more precise with anatomically stable joints. Joints with *low* motion energy (like shoulders) get a *high* weight, meaning the loss function heavily penalizes any error in their velocity or acceleration. Conversely, joints with *high* motion energy (like fingertips) get a *low* weight, allowing the model more leniency. This focuses the model's effort on maintaining a stable core structure. 
 
@@ -308,8 +262,6 @@ The main interface is split into a **2-column grid layout** (with a 1.2fr input 
 - **Save Generated GIF:** (Green/Success) Allows the user to download the final, complete animation. 
 - **Reset/Clear:** (Yellow/Warning) Clears all text and output signs, returning the UI to its initial state. 
 - **Back to Intro:** (Blue/Info) Provides a smooth transition back to the main introductory screen. 
-
-![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.016.jpeg)![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.017.jpeg)
 
 **Results and Analysis** 
 
