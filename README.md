@@ -2,11 +2,9 @@
 
 **Speech-to-Sign Language Animation Using AI-Driven Pose Learning Group Name: CBA** 
 
-**Github:[** https://github.com/SharmaShivam9/Speech-to-Sign-Language-Animation-Using-AI-Driven-Pose-Learning** ](https://github.com/SharmaShivam9/Speech-to-Sign-Language-Animation-Using-AI-Driven-Pose-Learning)![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.001.png)**
-
 **Team Details:**
 
-**Team Members:** Shivam Sharma (221016), Taneshwar Kumar Meena (221124) and Aryan Satyaprakash (220228) **Point of Contact:** Shivam Sharma (221016) ![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.002.png)
+**Team Members:** Shivam Sharma (221016), Taneshwar Kumar Meena (221124) and Aryan Satyaprakash (220228)  ![](Aspose.Words.45ce0e4b-eb3d-40ea-b0e6-2576a8cfbb55.002.png)
 
 **Project Aim** 
 
